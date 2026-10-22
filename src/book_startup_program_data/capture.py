@@ -8,6 +8,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from .cli import resource, validate
+from .observability import init_sentry, report_exit
 
 
 class Text(HTMLParser):
@@ -93,7 +94,7 @@ def normalize(raw, source, checked_at):
     parser.feed(raw.decode("utf-8"))
     text = " ".join(" ".join(parser.parts).split())
     folded = text.casefold()
-    required = (
+    required: tuple[str, ...] = (
         "united states",
         "ten-week accelerator program",
         "seed to series a",
@@ -196,7 +197,9 @@ def main(argv=None):
 
     if VERSION != 1:
         raise RuntimeError("unsupported shared capture runtime")
-    return run(source_config(selected.source_id), normalize, validate, remaining)
+    source = source_config(selected.source_id)
+    sentry = init_sentry(source["id"])
+    return report_exit(sentry, source["id"], run(source, normalize, validate, remaining))
 
 
 if __name__ == "__main__":
